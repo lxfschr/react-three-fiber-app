@@ -9,16 +9,9 @@ import AppController from './AppController'
 const MeshView = ({mesh}) => {
   const getThreeJsMeshBasedOnType = () => {
     switch (mesh.type) {
-      case "BOX":
-        return (
-          <boxGeometry args={mesh.parameters.size} />
-        )
-      case "SPHERE":
-        return (
-          <sphereGeometry args={mesh.parameters.size} />
-        )
-      default:
-        throw new Error("No associated ThreeJs geometry for type ", mesh.type)
+      case "BOX": return <boxGeometry args={mesh.parameters.size} />
+      case "SPHERE": return <sphereGeometry args={mesh.parameters.size} />
+      default: throw new Error("No associated ThreeJs geometry for type ", mesh.type)
     }  
   }
   
@@ -34,6 +27,7 @@ const NodeView = ({node}) => {
   // Set up state for the hovered and active state
   const [active, setActive] = useState(false)
   const [color, setColor] = useState('black')
+  const [position, setPosition] = useState(node.position)
   const activeColor = 'cyan'
 
   const getColor = () => {
@@ -41,12 +35,24 @@ const NodeView = ({node}) => {
     return color;
   }
 
+  const onClick= (e) => {
+    console.log("adbg ~ file: App.js ~ line 39 ~ onClick ~ e", e)
+    console.log("adbg ~ file: App.js ~ line 41 ~ onClick ~ node.children", node.children)
+    if (node.children && (e.ctrlKey || e.metaKey)) {
+      e.stopPropagation();
+      console.log("adbg ~ file: App.js ~ line 41 ~ onClick ~ node.children && e.ctrlKey || e.metaKey", node.children && e.ctrlKey || e.metaKey)
+    }
+    AppController.instance.selectedItem = node;
+    console.log("adbg ~ file: App.js ~ line 42 ~ onClick ~ AppController.instance.selectedItem", AppController.instance.selectedItem)
+    setActive(!active)
+  }
+
   return (
     <group
-      position={node.position}
-      onClick={(e) => setActive(!active)}>
+      position={position}
+      onClick={onClick}>
       {node.mesh && <MeshView mesh={node.mesh} />}
-      {node.children.map((child, i) => { console.log("child: ", child); return <NodeView key={""+i} node={child} /> })}
+      {node.children.map((child, i) => { return <NodeView key={i} node={child} /> })}
     </group>
   )
 }
@@ -72,7 +78,6 @@ const SceneTransformableView = ({ active, children, orbitControls }) => {
   
 const Main = () => {
   const orbitControls = useRef()
-  const transform = useRef()
 
   return (
     <>
@@ -80,9 +85,10 @@ const Main = () => {
       <spotLight position={[10, 10, -10]} angle={0.15} penumbra={1} />
       <pointLight position={[-10, -10, -10]} />
       {/* <gridHelper /> */}
-      <SceneTransformableView active={true} orbitControls={orbitControls} >
-        {AppController.instance.sceneItems.map((item, i) => {console.log("item: ", item); return <NodeView key={""+i} node={item} /> })}
-      </SceneTransformableView>
+      {AppController.instance.sceneItems.filter((item) => item !== AppController.instance.selectedItem).map((item, i) => { console.log("item: ", item); return <NodeView key={i} node={item} /> })}
+      {AppController.instance.selectedItem && <SceneTransformableView active={true} orbitControls={orbitControls} >
+        <NodeView node={AppController.instance.selectedItem} />
+      </SceneTransformableView>}
       <OrbitControls ref={orbitControls} enabledDamping dampingFactor={1} rotateSpeed={1}/>
     </>
   )

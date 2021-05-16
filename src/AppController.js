@@ -15,6 +15,7 @@ export default class AppController {
       ]
     )
     this.sceneItems.push(meterIcon);
+    // this.selectedItem = this.sceneItems[0];
   }
 
   static get instance() {
