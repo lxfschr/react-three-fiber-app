@@ -10,7 +10,7 @@ const MeshView = ({mesh}) => {
   const getThreeJsMeshBasedOnType = () => {
     switch (mesh.type) {
       case "BOX": return <boxGeometry args={mesh.parameters.size} />
-      case "SPHERE": return <sphereGeometry args={mesh.parameters.size} />
+      case "SPHERE": return <sphereGeometry args={[mesh.parameters.radius, mesh.parameters.widthSegments, mesh.parameters.heightSegments]} />
       default: throw new Error("No associated ThreeJs geometry for type ", mesh.type)
     }  
   }
@@ -27,7 +27,6 @@ const NodeView = ({node}) => {
   // Set up state for the hovered and active state
   const [active, setActive] = useState(false)
   const [color, setColor] = useState('black')
-  const [position, setPosition] = useState(node.position)
   const activeColor = 'cyan'
 
   const getColor = () => {
@@ -36,20 +35,18 @@ const NodeView = ({node}) => {
   }
 
   const onClick= (e) => {
-    console.log("adbg ~ file: App.js ~ line 39 ~ onClick ~ e", e)
-    console.log("adbg ~ file: App.js ~ line 41 ~ onClick ~ node.children", node.children)
     if (node.children && (e.ctrlKey || e.metaKey)) {
       e.stopPropagation();
-      console.log("adbg ~ file: App.js ~ line 41 ~ onClick ~ node.children && e.ctrlKey || e.metaKey", node.children && e.ctrlKey || e.metaKey)
     }
     AppController.instance.selectedItem = node;
-    console.log("adbg ~ file: App.js ~ line 42 ~ onClick ~ AppController.instance.selectedItem", AppController.instance.selectedItem)
     setActive(!active)
   }
 
   return (
     <group
-      position={position}
+      position={node.position}
+      rotation={node.rotation}
+      scale={node.scale}
       onClick={onClick}>
       {node.mesh && <MeshView mesh={node.mesh} />}
       {node.children.map((child, i) => { return <NodeView key={i} node={child} /> })}
@@ -60,6 +57,24 @@ const NodeView = ({node}) => {
 const SceneTransformableView = ({ active, children, orbitControls }) => {
   const transformControls = useRef()
   const mode = useControl("mode", { type: "select", items: ["translate", "rotate", "scale"] })
+
+  
+  const selItem = AppController.instance.selectedItem;
+
+  const [xPosition, setXPosition] = useState(selItem && selItem.position[0]);
+  const [yPosition, setYPosition] = useState(selItem && selItem.position[1]);
+  const [zPosition, setZPosition] = useState(selItem && selItem.position[2]);
+
+  const [xRotation, setXRotation] = useState(selItem && selItem.rotation[0]);
+  const [yRotation, setYRotation] = useState(selItem && selItem.rotation[0]);
+  const [zRotation, setZRotation] = useState(selItem && selItem.rotation[0]);
+
+  const [xScale, setXScale] = useState(selItem && selItem.scale[0]);
+  const [yScale, setYScale] = useState(selItem && selItem.scale[0]);
+  const [zScale, setZScale] = useState(selItem && selItem.scale[0]);
+
+  const rotationX = useControl('Position X', { type: 'number', state: [xPosition, setXPosition], });
+
 
   useEffect(() => {
    if (transformControls.current) {
@@ -84,7 +99,6 @@ const Main = () => {
       <ambientLight intensity={0.5} />
       <spotLight position={[10, 10, -10]} angle={0.15} penumbra={1} />
       <pointLight position={[-10, -10, -10]} />
-      {/* <gridHelper /> */}
       {AppController.instance.sceneItems.filter((item) => item !== AppController.instance.selectedItem).map((item, i) => { console.log("item: ", item); return <NodeView key={i} node={item} /> })}
       {AppController.instance.selectedItem && <SceneTransformableView active={true} orbitControls={orbitControls} >
         <NodeView node={AppController.instance.selectedItem} />
