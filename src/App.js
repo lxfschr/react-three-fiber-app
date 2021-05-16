@@ -2,9 +2,8 @@ import React, { useEffect, useRef, useState } from 'react'
 import { Canvas, useResource } from 'react-three-fiber'
 import { OrbitControls, TransformControls } from 'drei'
 import { Controls, useControl } from "react-three-gui"
-import "./AppController"
-import AppController from './AppController'
-
+import Mesh from "./Mesh.js"
+import Node from "./Node.js"
 
 const MeshView = ({mesh}) => {
   const getThreeJsMeshBasedOnType = () => {
@@ -23,23 +22,13 @@ const MeshView = ({mesh}) => {
   )
 }
 
-const NodeView = ({node}) => {
-  // Set up state for the hovered and active state
-  const [active, setActive] = useState(false)
-  const [color, setColor] = useState('black')
-  const activeColor = 'cyan'
-
-  const getColor = () => {
-    if (active) return activeColor;
-    return color;
-  }
+const NodeView = ({node, onSelect}) => {
 
   const onClick= (e) => {
     if (node.children && (e.ctrlKey || e.metaKey)) {
       e.stopPropagation();
     }
-    AppController.instance.selectedItem = node;
-    setActive(!active)
+    onSelect(node);
   }
 
   return (
@@ -49,17 +38,16 @@ const NodeView = ({node}) => {
       scale={node.scale}
       onClick={onClick}>
       {node.mesh && <MeshView mesh={node.mesh} />}
-      {node.children.map((child, i) => { return <NodeView key={i} node={child} /> })}
+      {node.children.map((child, i) => { return <NodeView key={i} node={child} onSelect={onSelect} /> })}
     </group>
   )
 }
 
-const SceneTransformableView = ({ active, children, orbitControls }) => {
+const SceneTransformableView = ({ selectedItem, children, orbitControls }) => {
   const transformControls = useRef()
   const mode = useControl("mode", { type: "select", items: ["translate", "rotate", "scale"] })
 
-  
-  const selItem = AppController.instance.selectedItem;
+  const selItem = selectedItem;
 
   const [xPosition, setXPosition] = useState(selItem && selItem.position[0]);
   const [yPosition, setYPosition] = useState(selItem && selItem.position[1]);
@@ -85,13 +73,11 @@ const SceneTransformableView = ({ active, children, orbitControls }) => {
       return () => controls.removeEventListener("dragging-changed", callback);
    }
  });
-
-  if (!active) return children
  
-  return <TransformControls ref={transformControls}>{children}</TransformControls>
+  return <TransformControls ref={transformControls} onUpdate={(self) => {console.log("update ", self);}}>{children}</TransformControls>
 }
   
-const Main = () => {
+const Main = ({sceneItems, selectedItem, onSelect}) => {
   const orbitControls = useRef()
 
   return (
@@ -99,9 +85,9 @@ const Main = () => {
       <ambientLight intensity={0.5} />
       <spotLight position={[10, 10, -10]} angle={0.15} penumbra={1} />
       <pointLight position={[-10, -10, -10]} />
-      {AppController.instance.sceneItems.filter((item) => item !== AppController.instance.selectedItem).map((item, i) => { console.log("item: ", item); return <NodeView key={i} node={item} /> })}
-      {AppController.instance.selectedItem && <SceneTransformableView active={true} orbitControls={orbitControls} >
-        <NodeView node={AppController.instance.selectedItem} />
+      {sceneItems.filter((item) => item !== selectedItem).map((item, i) => { console.log("item: ", item); return <NodeView key={i} node={item} onSelect={onSelect} /> })}
+      {selectedItem && <SceneTransformableView selectedItem={selectedItem} orbitControls={orbitControls} >
+        <NodeView node={selectedItem} onSelect={onSelect} />
       </SceneTransformableView>}
       <OrbitControls ref={orbitControls} enabledDamping dampingFactor={1} rotateSpeed={1}/>
     </>
@@ -109,10 +95,35 @@ const Main = () => {
 }
   
 export default function App() {
+  const sceneItemsArray = [];
+
+  const meterIcon = new Node(
+    [
+      new Node([], new Mesh("BOX", {size: [0.7, 2, 0.7]}), [-0.8, 0, 0]),
+      new Node([], new Mesh("BOX", {size: [0.7, 1.5, 0.7]}), [0, 0.25, 0]),
+      new Node([], new Mesh("BOX", {size: [0.7, 1.8, 0.7]}), [0.8, 0.1, 0]),
+    ]
+  );
+
+  const sphere = new Node([], new Mesh("SPHERE", {radius: 1, widthSegments: 32, heightSegments: 32}, '#2c3ab7'), [0, 3, 0]);
+  const sphere2 = new Node([], new Mesh("SPHERE", {radius: 1, widthSegments: 32, heightSegments: 32}, '#c800ff'), [0, -3, 0]);
+  sceneItemsArray.push(meterIcon);
+  sceneItemsArray.push(sphere);
+  sceneItemsArray.push(sphere2);
+
+  const [sceneItems, setSceneItems] = useState(sceneItemsArray);
+
+  const [selectedItem, setSelectedItem] = useState();
+
+  const onSelect = (item) => {
+    console.log("adbg ~ file: App.js ~ line 122 ~ onSelect ~ item", item)
+    setSelectedItem(item);
+  }
+
   return (
     <>
       <Canvas camera={{ position: [-5, 2, 10], fov: 35 }}>
-        <Main />
+        <Main sceneItems={sceneItems} selectedItem={selectedItem} onSelect={onSelect} />
       </Canvas>
       <Controls />
     </>
