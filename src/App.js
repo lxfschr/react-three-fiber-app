@@ -5,7 +5,7 @@ import { Controls, useControl } from "react-three-gui"
 import * as THREE from "three";
 import rgbToHex from "./lib/rgbToHex.js";
 
-const MeshView = ({mesh}) => {
+  const MeshView = ({mesh}) => {
   const getThreeJsMeshBasedOnType = () => {
     const geo = mesh.geometry;
     const params = geo.parameters;
@@ -23,7 +23,7 @@ const MeshView = ({mesh}) => {
   return (
     <mesh matrix={mesh.matrix}>
       {getThreeJsMeshBasedOnType()}
-      <meshStandardMaterial color={materialColorHexStr} />
+      <meshStandardMaterial color={materialColorHexStr} opacity={mesh.material.opacity} transparent={mesh.material.transparent} />
     </mesh>
   );
 }
@@ -31,9 +31,6 @@ const MeshView = ({mesh}) => {
 const NodeView = ({node, onSelect}) => {
   const onClick = (e) => {
     e.stopPropagation();
-    // if (node.children && (e.ctrlKey || e.metaKey)) {
-    //   e.stopPropagation();
-    // }
     onSelect(node);
   }
 
@@ -66,9 +63,9 @@ const NodeView = ({node, onSelect}) => {
   );
 }
 
-const SceneTransformableView = ({ selectedItem, sceneItems, orbitControls, onChange }) => {
+const SceneTransformableView = ({ selectedItem, orbitControls, onChange }) => {
   const transformControls = useRef()
-  const mode = useControl("mode", { type: "select", items: ["translate", "rotate", "scale"] })
+  const mode = useControl("mode", { type: "select", items: ["translate", "rotate"] })
 
   const selItem = selectedItem;
 
@@ -77,34 +74,55 @@ const SceneTransformableView = ({ selectedItem, sceneItems, orbitControls, onCha
   const [zPosition, setZPosition] = useState(selItem && selItem.position[2]);
 
   const [xRotation, setXRotation] = useState(selItem && selItem.rotation[0]);
-  const [yRotation, setYRotation] = useState(selItem && selItem.rotation[0]);
-  const [zRotation, setZRotation] = useState(selItem && selItem.rotation[0]);
+  const [yRotation, setYRotation] = useState(selItem && selItem.rotation[1]);
+  const [zRotation, setZRotation] = useState(selItem && selItem.rotation[2]);
 
-  const [xScale, setXScale] = useState(selItem && selItem.scale[0]);
-  const [yScale, setYScale] = useState(selItem && selItem.scale[0]);
-  const [zScale, setZScale] = useState(selItem && selItem.scale[0]);
+  const [opacity, setOpacity] = useState(1);
 
   useEffect(() => {
-    if (!selectedItem) return;
-    console.log("adbg ~ file: App.js ~ line 90 ~ SceneTransformableView ~ selectedItem.position", selectedItem.position)
     setXPosition(selectedItem.position.x);
     setYPosition(selectedItem.position.y);
     setZPosition(selectedItem.position.z);
   }, [selectedItem.position]);
+  
+  useEffect(() => {
+    setXRotation(selectedItem.rotation.x);
+    setYRotation(selectedItem.rotation.y);
+    setZRotation(selectedItem.rotation.z);
+  }, [selectedItem.rotation]);
+  
+  useEffect(() => {
+    if (selectedItem && selectedItem.children && selectedItem.children[0].type === "Mesh") {
+      setOpacity(selectedItem.children[0].material.opacity);
+    }
+  }, [selectedItem]);
 
-  const onPositionChange = (val, componentName) => {
+  const onTransformInputChange = (val, transformPropertyName, componentName) => {
     if (val === undefined) return;
-    console.log("adbg ~ file: App.js ~ line 96 ~ onPositionChange ~ val", val)
-    const selectedItemPosition = selectedItem.position;
-    selectedItemPosition[componentName] = val;
-    selectedItem.position.copy(selectedItemPosition);
+    const transform = selectedItem[transformPropertyName];
+    transform[componentName] = val;
+    selectedItem[transformPropertyName].copy(transform);
     selectedItem.updateMatrix();
     onChange(selectedItem);
   }
 
-  const positionX = useControl('Position X', { type: 'number', state: [xPosition, setXPosition], onChange: (val) => onPositionChange(val, "x")});
-  const positionY = useControl('Position Y', { type: 'number', state: [yPosition, setYPosition], onChange: (val) => onPositionChange(val, "y")});
-  const positionZ = useControl('Position Z', { type: 'number', state: [zPosition, setZPosition], onChange: (val) => onPositionChange(val, "z")});
+  const onOpacityChange = (val) => {
+    if (val === undefined) return;
+    if (!selectedItem.children || selectedItem.children[0].type !== "Mesh") return;
+    if (!selectedItem.children[0].material || !selectedItem.children[0].material.transparent) return;
+    selectedItem.children[0].material.opacity = val;
+    onChange(selectedItem);
+  }
+
+  useControl('Position X', { type: 'number', state: [xPosition, setXPosition], value: xPosition, scrub: true, onChange: (val) => onTransformInputChange(val, "position", "x")});
+  useControl('Position Y', { type: 'number', state: [yPosition, setYPosition], value: yPosition, scrub: true, onChange: (val) => onTransformInputChange(val, "position", "y")});
+  useControl('Position Z', { type: 'number', state: [zPosition, setZPosition], value: zPosition, scrub: true, onChange: (val) => onTransformInputChange(val, "position", "z")});
+
+  useControl('Rotation X', { type: 'number', state: [xRotation, setXRotation], value: xRotation, scrub: true, onChange: (val) => onTransformInputChange(val, "rotation", "x")});
+  useControl('Rotation Y', { type: 'number', state: [yRotation, setYRotation], value: yRotation, scrub: true, onChange: (val) => onTransformInputChange(val, "rotation", "y")});
+  useControl('Rotation Z', { type: 'number', state: [zRotation, setZRotation], value: zRotation, scrub: true, onChange: (val) => onTransformInputChange(val, "rotation", "z")});
+  
+  useControl('Opacity', { type: 'number', state: [opacity, setOpacity], value: opacity, min: 0, max: 1, onChange: onOpacityChange});
 
   useEffect(() => {
    if (transformControls.current) {
@@ -124,10 +142,7 @@ const SceneTransformableView = ({ selectedItem, sceneItems, orbitControls, onCha
       onChange(event.target.object);
     };
     controls.addEventListener("objectChange", callback);
-    return () => {
-      // controls.detach(selectedItem)
-      controls.removeEventListener("objectChange", callback);
-    };
+    return () => controls.removeEventListener("objectChange", callback);
   }
 }, [selectedItem, onChange]);
  
@@ -142,7 +157,7 @@ const Scene = () => {
 
   const sceneItemsArray = [];
 
-  const meterMaterial = new THREE.MeshBasicMaterial( {color: 0xf0f0f0} );
+  const meterMaterial = new THREE.MeshStandardMaterial( {color: 0xf0f0f0, transparent: true} );
   const boxGeometry = new THREE.BoxGeometry( 1, 1, 1 );
   const boxMeshLeft = new THREE.Mesh( boxGeometry, meterMaterial );
   const boxMeshMid = new THREE.Mesh( boxGeometry, meterMaterial );
@@ -164,7 +179,7 @@ const Scene = () => {
   meterObjectRight.position.copy( new THREE.Vector3(0.8, 1.1, 0) );
   meterObjectRight.scale.copy( new THREE.Vector3(0.7, 1.8, 0.7) );
 
-  const cylinderMaterial = new THREE.MeshBasicMaterial( {color: 0x2c3ab7} );
+  const cylinderMaterial = new THREE.MeshStandardMaterial( {color: 0x2c3ab7, transparent: true} );
   const cylinderGeometry = new THREE.CylinderGeometry( 3, 3, 0.1, 32, 1 );
   const cylinderMesh = new THREE.Mesh( cylinderGeometry, cylinderMaterial );
   const cylinderObject = new THREE.Object3D();
@@ -179,7 +194,7 @@ const Scene = () => {
     obj.updateMatrix();
   }
 
-  const sphereMaterial = new THREE.MeshBasicMaterial( {color: 0x2c3ab7} );
+  const sphereMaterial = new THREE.MeshStandardMaterial( {color: 0x2c3ab7, transparent: true} );
   const sphereGeometry = new THREE.SphereGeometry( 1, 32, 32 );
   const sphereMesh = new THREE.Mesh( sphereGeometry, sphereMaterial );
   const sphereObject = new THREE.Object3D();
@@ -187,7 +202,7 @@ const Scene = () => {
   sphereObject.updateMatrix();
   sphereObject.add(sphereMesh);
 
-  const coneMaterial = new THREE.MeshBasicMaterial( {color: 0xc800ff} );
+  const coneMaterial = new THREE.MeshStandardMaterial( {color: 0xc800ff, transparent: true} );
   const coneGeometry = new THREE.ConeGeometry( 1, 2, 32, 32 );
   const coneMesh = new THREE.Mesh( coneGeometry, coneMaterial );
   const coneObject = new THREE.Object3D();
@@ -211,16 +226,13 @@ const Scene = () => {
   const [selectedItem, setSelectedItem] = useState();
 
   const onSelect = (item) => {
-    console.log("adbg ~ file: App.js ~ line 122 ~ onSelect ~ item", item)
     setSelectedItem(item);
   }
 
   const onTransformableChange = (object) => {
-    console.log("adbg ~ file: App.js ~ line 143 ~ onTransformableChange ~ object", object)
     const newSceneItems = [];
     for (const item of sceneItems) {
       if (item.uuid === object.uuid) {
-        console.log("SAME!")
         newSceneItems.push(object);
       } else {
         newSceneItems.push(item)
@@ -235,7 +247,7 @@ const Scene = () => {
       <spotLight position={[10, 10, -10]} angle={0.15} penumbra={1} />
       <pointLight position={[-10, -10, -10]} />
       {sceneItems.map((item, i) => <NodeView key={i} node={item} onSelect={onSelect} /> )}
-      {selectedItem && <SceneTransformableView selectedItem={selectedItem} sceneItems={sceneItems} orbitControls={orbitControls} onChange={onTransformableChange} >
+      {selectedItem && <SceneTransformableView selectedItem={selectedItem} orbitControls={orbitControls} onChange={onTransformableChange} >
       </SceneTransformableView>}
       <OrbitControls ref={orbitControls} enabledDamping dampingFactor={1} rotateSpeed={1}/>
     </>
