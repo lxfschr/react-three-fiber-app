@@ -5,7 +5,7 @@ import { Controls, useControl } from "react-three-gui"
 import * as THREE from "three";
 import rgbToHex from "./lib/rgbToHex.js";
 
-  const MeshView = ({mesh}) => {
+const MeshView = ({mesh}) => {
   const getThreeJsMeshBasedOnType = () => {
     const geo = mesh.geometry;
     const params = geo.parameters;
@@ -13,6 +13,7 @@ import rgbToHex from "./lib/rgbToHex.js";
       case "BoxGeometry": return <boxGeometry args={[params.width, params.height, params.depth]} />
       case "SphereGeometry": return <sphereGeometry args={[params.radius, params.widthSegments, params.heightSegments]} />
       case "ConeGeometry": return <coneGeometry args={[params.radius, params.height, params.radialSegments, params.heightSegments]} />
+      case "CylinderGeometry": return <cylinderGeometry args={[params.radiusTop, params.radiusBottom, params.height, params.radialSegments, params.heightSegments]} />
       default: throw new Error("No associated ThreeJs geometry for type ", mesh.type)
     }  
   }
@@ -28,11 +29,11 @@ import rgbToHex from "./lib/rgbToHex.js";
 }
 
 const NodeView = ({node, onSelect}) => {
-
-  const onClick= (e) => {
-    if (node.children && (e.ctrlKey || e.metaKey)) {
-      e.stopPropagation();
-    }
+  const onClick = (e) => {
+    e.stopPropagation();
+    // if (node.children && (e.ctrlKey || e.metaKey)) {
+    //   e.stopPropagation();
+    // }
     onSelect(node);
   }
 
@@ -65,7 +66,7 @@ const NodeView = ({node, onSelect}) => {
   );
 }
 
-const SceneTransformableView = ({ selectedItem, children, orbitControls, onChange }) => {
+const SceneTransformableView = ({ selectedItem, sceneItems, orbitControls, onChange }) => {
   const transformControls = useRef()
   const mode = useControl("mode", { type: "select", items: ["translate", "rotate", "scale"] })
 
@@ -83,7 +84,27 @@ const SceneTransformableView = ({ selectedItem, children, orbitControls, onChang
   const [yScale, setYScale] = useState(selItem && selItem.scale[0]);
   const [zScale, setZScale] = useState(selItem && selItem.scale[0]);
 
-  const rotationX = useControl('Position X', { type: 'number', state: [xPosition, setXPosition], });
+  useEffect(() => {
+    if (!selectedItem) return;
+    console.log("adbg ~ file: App.js ~ line 90 ~ SceneTransformableView ~ selectedItem.position", selectedItem.position)
+    setXPosition(selectedItem.position.x);
+    setYPosition(selectedItem.position.y);
+    setZPosition(selectedItem.position.z);
+  }, [selectedItem.position]);
+
+  const onPositionChange = (val, componentName) => {
+    if (val === undefined) return;
+    console.log("adbg ~ file: App.js ~ line 96 ~ onPositionChange ~ val", val)
+    const selectedItemPosition = selectedItem.position;
+    selectedItemPosition[componentName] = val;
+    selectedItem.position.copy(selectedItemPosition);
+    selectedItem.updateMatrix();
+    onChange(selectedItem);
+  }
+
+  const positionX = useControl('Position X', { type: 'number', state: [xPosition, setXPosition], onChange: (val) => onPositionChange(val, "x")});
+  const positionY = useControl('Position Y', { type: 'number', state: [yPosition, setYPosition], onChange: (val) => onPositionChange(val, "y")});
+  const positionZ = useControl('Position Z', { type: 'number', state: [zPosition, setZPosition], onChange: (val) => onPositionChange(val, "z")});
 
   useEffect(() => {
    if (transformControls.current) {
@@ -97,11 +118,10 @@ const SceneTransformableView = ({ selectedItem, children, orbitControls, onChang
 
  useEffect(() => {
   if (transformControls.current) {
-    console.log("adbg ~ file: App.js ~ line 102 ~ useEffect ~ selectedItem", selectedItem)
     const controls = transformControls.current;
     controls.attach(selectedItem);
     const callback = (event) => {
-      onChange(event.target.object.position);
+      onChange(event.target.object);
     };
     controls.addEventListener("objectChange", callback);
     return () => {
@@ -112,38 +132,14 @@ const SceneTransformableView = ({ selectedItem, children, orbitControls, onChang
 }, [selectedItem, onChange]);
  
   return (
-    <TransformControls 
-      ref={transformControls} 
-      on
-      onUpdate={(self) => {console.log("update ", self);}}>
-      {children}
-    </TransformControls>
+    <TransformControls ref={transformControls} />
   );
 }
   
-const Main = ({sceneItems, selectedItem, onSelect, onTransformableChange}) => {
+const Scene = () => {
   const orbitControls = useRef();
+  const { scene } = useThree();
 
-  const { camera, gl, scene } = useThree();
-
-  for (const item of sceneItems) {
-    scene.add(item);
-  }
-
-  return (
-    <>
-      <ambientLight intensity={0.5} />
-      <spotLight position={[10, 10, -10]} angle={0.15} penumbra={1} />
-      <pointLight position={[-10, -10, -10]} />
-      {sceneItems.map((item, i) => { console.log("item: ", item); return <NodeView key={i} node={item} onSelect={onSelect} /> })}
-      {selectedItem && <SceneTransformableView selectedItem={selectedItem} orbitControls={orbitControls} onChange={onTransformableChange} >
-      </SceneTransformableView>}
-      <OrbitControls ref={orbitControls} enabledDamping dampingFactor={1} rotateSpeed={1}/>
-    </>
-  )
-}
-  
-export default function App() {
   const sceneItemsArray = [];
 
   const meterMaterial = new THREE.MeshBasicMaterial( {color: 0xf0f0f0} );
@@ -159,22 +155,28 @@ export default function App() {
   meterObjectMid.add(boxMeshMid);
   meterObjectRight.add(boxMeshRight);
 
-  meterObjectLeft.position.copy( new THREE.Vector3(-0.8, 0, 0) );
+  meterObjectLeft.position.copy( new THREE.Vector3(-0.8, 1, 0) );
   meterObjectLeft.scale.copy( new THREE.Vector3(0.7, 2, 0.7) );
 
-  meterObjectMid.position.copy( new THREE.Vector3(0, 0.25, 0) );
+  meterObjectMid.position.copy( new THREE.Vector3(0, 1.25, 0) );
   meterObjectMid.scale.copy( new THREE.Vector3(0.7, 1.5, 0.7) );
 
-  meterObjectRight.position.copy( new THREE.Vector3(0.8, 0.1, 0) );
+  meterObjectRight.position.copy( new THREE.Vector3(0.8, 1.1, 0) );
   meterObjectRight.scale.copy( new THREE.Vector3(0.7, 1.8, 0.7) );
 
-  const meterLogoGroup = new THREE.Group();
-  meterLogoGroup.add( meterObjectLeft );
-  meterLogoGroup.add( meterObjectMid );
-  meterLogoGroup.add( meterObjectRight );
+  const cylinderMaterial = new THREE.MeshBasicMaterial( {color: 0x2c3ab7} );
+  const cylinderGeometry = new THREE.CylinderGeometry( 3, 3, 0.1, 32, 1 );
+  const cylinderMesh = new THREE.Mesh( cylinderGeometry, cylinderMaterial );
+  const cylinderObject = new THREE.Object3D();
+  cylinderObject.position.copy( new THREE.Vector3(0, -1, 0) );
+  cylinderObject.add(cylinderMesh);
 
-  for (const obj of meterLogoGroup.children) {
-    meterObjectLeft.updateMatrix();
+  cylinderObject.add(meterObjectLeft);
+  cylinderObject.add(meterObjectMid);
+  cylinderObject.add(meterObjectRight);
+
+  for (const obj of cylinderObject.children) {
+    obj.updateMatrix();
   }
 
   const sphereMaterial = new THREE.MeshBasicMaterial( {color: 0x2c3ab7} );
@@ -189,15 +191,22 @@ export default function App() {
   const coneGeometry = new THREE.ConeGeometry( 1, 2, 32, 32 );
   const coneMesh = new THREE.Mesh( coneGeometry, coneMaterial );
   const coneObject = new THREE.Object3D();
-  coneObject.position.copy( new THREE.Vector3(0, -3, 0) );
+  const coneQuaternion = new THREE.Quaternion();
+  coneQuaternion.setFromAxisAngle( new THREE.Vector3( 1, 0, 0 ), Math.PI);
+  coneObject.rotation.copy( new THREE.Euler( Math.PI / 2, 1, 0, 'XYZ' ) );
+  coneObject.position.copy( new THREE.Vector3(0, 0, 5) );
   coneObject.updateMatrix();
   coneObject.add(coneMesh);
 
-  sceneItemsArray.push(meterLogoGroup);
+  sceneItemsArray.push(cylinderObject);
   sceneItemsArray.push(sphereObject);
   sceneItemsArray.push(coneObject);
 
   const [sceneItems, setSceneItems] = useState(sceneItemsArray);
+
+  for (const item of sceneItems) {
+    scene.add(item);
+  }
 
   const [selectedItem, setSelectedItem] = useState();
 
@@ -206,21 +215,38 @@ export default function App() {
     setSelectedItem(item);
   }
 
-  const onTransformableChange = (position) => {
-    console.log("adbg ~ file: App.js ~ line 143 ~ onTransformableChange ~ position", position)
-    const newItem = selectedItem;
-    console.log("adbg ~ file: App.js ~ line 145 ~ onTransformableChange ~ selectedItem", selectedItem)
-    // newItem.position = position;
-    console.log("adbg ~ file: App.js ~ line 147 ~ onTransformableChange ~ newItem", newItem)
-    setSceneItems([...sceneItems.filter((item) => item !== selectedItem), newItem]);
+  const onTransformableChange = (object) => {
+    console.log("adbg ~ file: App.js ~ line 143 ~ onTransformableChange ~ object", object)
+    const newSceneItems = [];
+    for (const item of sceneItems) {
+      if (item.uuid === object.uuid) {
+        console.log("SAME!")
+        newSceneItems.push(object);
+      } else {
+        newSceneItems.push(item)
+      }
+    }
+    setSceneItems(newSceneItems);
   }
-
-
 
   return (
     <>
-      <Canvas camera={{ position: [-5, 2, 10], fov: 35 }}>
-        <Main sceneItems={sceneItems} selectedItem={selectedItem} onSelect={onSelect} onTransformableChange={onTransformableChange} />
+      <ambientLight intensity={0.5} />
+      <spotLight position={[10, 10, -10]} angle={0.15} penumbra={1} />
+      <pointLight position={[-10, -10, -10]} />
+      {sceneItems.map((item, i) => <NodeView key={i} node={item} onSelect={onSelect} /> )}
+      {selectedItem && <SceneTransformableView selectedItem={selectedItem} sceneItems={sceneItems} orbitControls={orbitControls} onChange={onTransformableChange} >
+      </SceneTransformableView>}
+      <OrbitControls ref={orbitControls} enabledDamping dampingFactor={1} rotateSpeed={1}/>
+    </>
+  )
+}
+  
+export default function App() {
+  return (
+    <>
+      <Canvas camera={{ position: [-20, 5, 20], fov: 35 }}>
+        <Scene />
       </Canvas>
       <Controls />
     </>
