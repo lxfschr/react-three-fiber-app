@@ -6,8 +6,9 @@ export default function rgbToHex(r, g, b) {
     return "#"+red+green+blue;
 }
 
-function rgbComponentToHex(rgb) { 
-  var hex = Number(rgb).toString(16);
+// Convert single component assumed to be 0-255 to hex. 
+function rgbComponentToHex(rgbComponent) { 
+  let hex = Number(rgbComponent).toString(16);
   if (hex.length < 2) {
     hex = "0" + hex;
   }

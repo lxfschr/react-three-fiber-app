@@ -5,7 +5,6 @@ import { TransformControls } from "drei"
 
 export default function SceneTransformable({ selectedItem, orbitControls, onChange }) {
     const transformControls = useRef();
-    const mode = useControl("mode", { type: "select", items: ["translate", "rotate"] });
   
     const selItem = selectedItem;
   
@@ -19,24 +18,7 @@ export default function SceneTransformable({ selectedItem, orbitControls, onChan
   
     const [opacity, setOpacity] = useState(1);
   
-    useEffect(() => {
-      setXPosition(selectedItem.position.x);
-      setYPosition(selectedItem.position.y);
-      setZPosition(selectedItem.position.z);
-    }, [selectedItem.position]);
-    
-    useEffect(() => {
-      setXRotation(selectedItem.rotation.x);
-      setYRotation(selectedItem.rotation.y);
-      setZRotation(selectedItem.rotation.z);
-    }, [selectedItem.rotation]);
-    
-    useEffect(() => {
-      if (selectedItem && selectedItem.children && selectedItem.children[0].type === "Mesh") {
-        setOpacity(selectedItem.children[0].material.opacity);
-      }
-    }, [selectedItem]);
-  
+    // Update selected item's transform based on inputs and call back to scene to update scene items
     const onTransformInputChange = (val, transformPropertyName, componentName) => {
       if (val === undefined) return;
       const transform = selectedItem[transformPropertyName];
@@ -46,6 +28,7 @@ export default function SceneTransformable({ selectedItem, orbitControls, onChan
       onChange(selectedItem);
     }
   
+    // Update selected item's opacity based on inputs and call back to scene to update scene items
     const onOpacityChange = (val) => {
       if (val === undefined) return;
       if (!selectedItem.children || selectedItem.children[0].type !== "Mesh") return;
@@ -54,6 +37,9 @@ export default function SceneTransformable({ selectedItem, orbitControls, onChan
       onChange(selectedItem);
     }
   
+    // Add controls from react-three-gui
+    const mode = useControl("Transform Mode", { type: "select", items: ["Translate", "Rotate"] });
+
     useControl("Position X", { type: "number", state: [xPosition, setXPosition], value: xPosition, scrub: true, onChange: (val) => onTransformInputChange(val, "position", "x")});
     useControl("Position Y", { type: "number", state: [yPosition, setYPosition], value: yPosition, scrub: true, onChange: (val) => onTransformInputChange(val, "position", "y")});
     useControl("Position Z", { type: "number", state: [zPosition, setZPosition], value: zPosition, scrub: true, onChange: (val) => onTransformInputChange(val, "position", "z")});
@@ -64,16 +50,39 @@ export default function SceneTransformable({ selectedItem, orbitControls, onChan
     
     useControl("Opacity", { type: "number", state: [opacity, setOpacity], value: opacity, min: 0, max: 1, onChange: onOpacityChange});
   
+    // Update the position values when the selected item's position changes
     useEffect(() => {
-     if (transformControls.current) {
+      setXPosition(selectedItem.position.x);
+      setYPosition(selectedItem.position.y);
+      setZPosition(selectedItem.position.z);
+    });
+    
+    // Update the rotation values when the selected item's rotation changes
+    useEffect(() => {
+      setXRotation(selectedItem.rotation.x);
+      setYRotation(selectedItem.rotation.y);
+      setZRotation(selectedItem.rotation.z);
+    });
+    
+    // Update the opacity value when the selected item's opacity changes
+    useEffect(() => {
+      if (selectedItem && selectedItem.children && selectedItem.children[0].type === "Mesh") {
+        setOpacity(selectedItem.children[0].material.opacity);
+      }
+    });
+
+    // Disable orbit controls when dragging on transform controls
+    useEffect(() => {
+      if (transformControls.current) {
         const controls = transformControls.current;
-        controls.setMode(mode);
+        controls.setMode(mode.toLowerCase());
         const callback = (event) => (orbitControls.current.enabled = !event.value);
         controls.addEventListener("dragging-changed", callback);
         return () => controls.removeEventListener("dragging-changed", callback);
       }
     });
   
+    // Update selectedItem when the object attached to the transform control changes
     useEffect(() => {
       if (transformControls.current) {
         const controls = transformControls.current;
@@ -84,7 +93,7 @@ export default function SceneTransformable({ selectedItem, orbitControls, onChan
         controls.addEventListener("objectChange", callback);
         return () => controls.removeEventListener("objectChange", callback);
       }
-    }, [selectedItem, onChange]);
+    }, [onChange]);
    
     return (
       <TransformControls ref={transformControls} />

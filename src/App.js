@@ -9,7 +9,7 @@ export default function App() {
       <Canvas camera={{ position: [-20, 5, 20], fov: 35 }}>
         <Scene />
       </Canvas>
-      <Controls />
+      <Controls width={800} />
     </>
   )
 }
