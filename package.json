@@ -1,7 +1,7 @@
 {
-  "name": "controls-transform",
+  "name": "react-three-fiber-app",
   "version": "1.0.0",
-  "description": "https://bradwoods.io/guides/react-three-fiber",
+  "description": "Three.js app with basic selection and 3d manipulation controls",
   "keywords": [],
   "main": "src/index.js",
   "dependencies": {

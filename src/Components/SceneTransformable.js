@@ -55,21 +55,21 @@ export default function SceneTransformable({ selectedItem, orbitControls, onChan
       setXPosition(selectedItem.position.x);
       setYPosition(selectedItem.position.y);
       setZPosition(selectedItem.position.z);
-    });
+    }, [selectedItem.position.x, selectedItem.position.y, selectedItem.position.z]);
     
     // Update the rotation values when the selected item's rotation changes
     useEffect(() => {
       setXRotation(selectedItem.rotation.x);
       setYRotation(selectedItem.rotation.y);
       setZRotation(selectedItem.rotation.z);
-    });
+    }, [selectedItem.rotation.x, selectedItem.rotation.y, selectedItem.rotation.z]);
     
     // Update the opacity value when the selected item's opacity changes
     useEffect(() => {
       if (selectedItem && selectedItem.children && selectedItem.children[0].type === "Mesh") {
         setOpacity(selectedItem.children[0].material.opacity);
       }
-    });
+    }, [selectedItem]);
 
     // Disable orbit controls when dragging on transform controls
     useEffect(() => {
@@ -93,7 +93,7 @@ export default function SceneTransformable({ selectedItem, orbitControls, onChan
         controls.addEventListener("objectChange", callback);
         return () => controls.removeEventListener("objectChange", callback);
       }
-    }, [onChange]);
+    }, [onChange, selectedItem]);
    
     return (
       <TransformControls ref={transformControls} />
